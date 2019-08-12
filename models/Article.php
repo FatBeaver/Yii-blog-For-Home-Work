@@ -5,6 +5,7 @@ namespace app\models;
 use Yii;
 use app\models\objects\ImageUpload;
 use yii\helpers\ArrayHelper;
+use yii\data\Pagination;
 
 /**
  * This is the model class for table "article".
@@ -85,10 +86,17 @@ class Article extends \yii\db\ActiveRecord
         return parent::beforeDelete();  
     }
 
-    public function getImage() {
-        
-        return ($this->image) ?  '@web/' . 'uploads/' . $this->image : '@web/' . 'uploads/no-image.png' ;
+    public function getImage($pageName) {
+        if ($pageName == 'index') {
+            return ($this->image) ?  '../../web/uploads/' . $this->image : '../../web/uploads/no-image.png' ;
+        }
+        if ($pageName == 'admin') {
+            return ($this->image) ?  '@web/uploads/' . $this->image : '@web/uploads/no-image.png';
+        }
+
+        return ($this->image) ?  '@web/uploads/' . $this->image : '@web/' . 'uploads/no-image.png' ;
     }
+    
 
 
     public function saveCategory($category_id) {
@@ -125,9 +133,12 @@ class Article extends \yii\db\ActiveRecord
         return $this->hasOne(Customer::className(), ['id' => 'customer_id']);
     }
 
+
     public function getCategory() {
+
         return $this->hasOne(Category::className(), ['id' => 'category_id']);
     }
+
 
     public function getTags() {
 
@@ -135,12 +146,14 @@ class Article extends \yii\db\ActiveRecord
                         ->viaTable('article_tag', ['article_id' => 'id']);
     }
 
+    
     public function getSelectedTags() {
         
         $selectedIDs = $this->getTags()->select('id')->asArray()->all();
 
         return ArrayHelper::getColumn($selectedIDs, 'id');
     }
+
 
     public function saveTags($tags) {
 
@@ -160,5 +173,65 @@ class Article extends \yii\db\ActiveRecord
     public function clearCurrentTags(){
 
         return ArticleTag::deleteAll(['article_id' => $this->id]);
+    }
+
+
+    public function getDate() {
+
+        return Yii::$app->formatter->asDate($this->date);
+    }
+
+    /**
+     * @return array
+     */
+    public static function getAll($pageSize = 5) {
+
+        $query = Article::find();
+
+        $count = $query->count();
+
+        $pagination = new Pagination(['totalCount' => $count, 'pageSize' => $pageSize]);
+
+        $articles = $query->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+
+        $data['articles'] = $articles;
+        $data['pagination'] = $pagination;
+
+        return $data; 
+    }
+
+    public static function getPopular() {
+
+        return Article::find()->orderBy('viewed desc')->limit(3)->all();
+    }
+
+    public static function getRecent() {
+
+        return Article::find()->orderBy('date desc')->limit(4)->all();
+    }
+
+    public function saveArticle() 
+    {
+        $this->user_id = Yii::$app->user->id;
+        return $this->save();
+    }
+
+    public function getComents() {
+
+        return $this->hasMany(Comment::className(), ['article_id' => 'id']);
+    }
+
+    public function getArticleComments() 
+    {
+        return $this->getComments()->where(['status' => 1])->all();
+    }
+
+    public function viewedCounter() 
+    {
+        $this->viewed += 1;
+
+        return $this->save(false);
     }
 }

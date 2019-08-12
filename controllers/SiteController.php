@@ -9,6 +9,10 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use yii\data\Pagination;
+use app\models\Article;
+use app\models\Category;
+use app\models\CommentForm;
 
 class SiteController extends Controller
 {
@@ -54,85 +58,84 @@ class SiteController extends Controller
         ];
     }
 
+    
     /**
      * Displays homepage.
      *
      * @return string
      */
     public function actionIndex()
-    {
-        return $this->render('index');
-    }
+    {   
+        $data       = Article::getAll();
 
-    public function actionSingle() {
+        $popular    = Article::getPopular();
+        $recent     = Article::getRecent();
+        $categories = Category::getCategories();
 
-        return $this->render('single');
-    }
-
-    public function actionCategory() {
-
-        return $this->render('category');
-    }
-
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
-        }
-
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
-        }
-
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
+        return $this->render('index', [
+            'articles' => $data['articles'],
+            'pagination' => $data['pagination'],
+            'popular' => $popular,
+            'recent' => $recent,
+            'categories' => $categories,
         ]);
     }
 
-    /**
-     * Logout action.
-     *
-     * @return Response
-     */
-    public function actionLogout()
-    {
-        Yii::$app->user->logout();
 
-        return $this->goHome();
-    }
+    public function actionSingle($id) {
 
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
+        $article = Article::findOne($id);
+        $tags    = $article->tags;
 
-            return $this->refresh();
-        }
-        return $this->render('contact', [
-            'model' => $model,
+        $popular     = Article::getPopular();
+        $recent      = Article::getRecent();
+        $categories  = Category::getCategories();
+        $comments    = $article->getArticleComments();
+        $commentForm = new CommentForm();
+
+        $article->viewedCounter();
+
+        return $this->render('single', [
+            'article' => $article,
+            'tags'    => $tags,
+            'popular' => $popular,
+            'recent'  => $recent,
+            'categories' => $categories,
+            'comments' => $comments,
+            'commentForm' => $commentForm,
         ]);
     }
 
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
+
+    public function actionCategory($id) {
+        
+        $data       = Category::getArticlesByCategory($id);
+        $popular    = Article::getPopular();
+        $recent     = Article::getRecent();
+        $categories = Category::getCategories();
+
+        return $this->render('category', [
+            'pagination' => $data['pagination'],
+            'articles'   => $data['articles'],
+            'popular' => $popular,
+            'recent' => $recent,
+            'categories' => $categories,
+        ]);
     }
+
+    public function actionComment($id) 
+    {
+        $model = new CommentForm();
+
+        if (Yii::$app->request->isPost)
+        {   
+            Yii::$app->getSession()->setFlash('comment', 'Ваш коментарий успешно добавлен');
+            $model->load(Yii::$app->request->post());
+            if ($model->saveComment($id)) 
+            {
+                return $this->redirect(['site/single', 'id' => $id]);
+            }
+        } 
+    }
+  
 }

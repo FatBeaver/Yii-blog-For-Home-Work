@@ -35,7 +35,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 'format' => 'html',
                 'label' => 'image',
                 'value' => function($data) {
-                    return Html::img($data->getImage(), ['width' => '200px']);
+                    return Html::img($data->getImage('admin'), ['width' => '200px']);
                 }
             ],
  
